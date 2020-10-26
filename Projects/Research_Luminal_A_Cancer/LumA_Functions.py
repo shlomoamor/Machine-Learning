@@ -19,7 +19,7 @@ def find_best_feature(selected_features, X_train, X_val, C_param, y_train, featu
     return (feature, accu_train)
 
 
-def forward_selection(data, X_train, y_train, X_val, y_val, max_features, C_param=1):
+def forward_selection(data, X_train, y_train, X_val, y_val, max_features, thread_Pool, C_param=1):
     # Getting all the features and remembering to remove the isLumA column
     features = [i for i in range(data.shape[1] - 1)]
     selected_features = []
@@ -34,8 +34,8 @@ def forward_selection(data, X_train, y_train, X_val, y_val, max_features, C_para
         best_feature = None
         highest_accu = 0
         results = []
-        # Create a threadpool of 5 process
-        pool = multiprocessing.Pool(4)
+        # Create a thread pool of thread_Pool amount of process
+        pool = multiprocessing.Pool(thread_Pool)
         # Creating a dummy function in order to send multiple inputs to the function
         func = partial(find_best_feature, selected_features, X_train, X_val, C_param, y_train)
         # Gather the results
@@ -47,7 +47,6 @@ def forward_selection(data, X_train, y_train, X_val, y_val, max_features, C_para
             if res[1] > highest_accu:
                 highest_accu = res[1]
                 best_feature = res[0]
-
         # Add the best feature to the list
         selected_features.append(best_feature)
         selected_features_by_name.append(data.columns[best_feature])
