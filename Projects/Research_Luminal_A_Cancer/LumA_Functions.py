@@ -2,28 +2,41 @@ import time
 import multiprocessing
 from sklearn.linear_model import LogisticRegression
 from functools import partial
+import pandas as pd
+import numpy as np
 
-	
+def bin_rank(data, bins=5):
+    data = pd.DataFrame(data)
+    rank_data = data.rank(axis=1)
+    for i, row in rank_data.iterrows():
+        rank_data.loc[i, :] = pd.cut(row, bins=bins, labels=False)
+    return rank_data.values
+
+
 def find_best_feature(selected_features, X_train, X_val, C_param, y_train, feature):
     # decide on which features we are using (selected_features + feature)
     features_in_use = selected_features + [feature]
     # print(features_in_use, int(feature))
     X_train_filt = X_train[:, features_in_use]
-    X_val_filt = X_val[:, features_in_use]
+    X_train_filt_ranked = bin_rank(X_train_filt)
+    # X_val_filt = X_val[:, features_in_use]
+    # X_val_filt_ranked = bin_rank(X_val_filt)
 
     # Fit a Logistic regression model
-    lr = LogisticRegression(C=C_param, random_state=0).fit(X_train_filt, y_train)
+    lr = LogisticRegression(C=C_param, random_state=0).fit(X_train_filt_ranked, y_train)
     # Get the accuracy rate using the validation set
-    accu_train = lr.score(X_train_filt, y_train)
+    accu_train = lr.score(X_train_filt_ranked, y_train)
     # Tuple format = (feature number, training accuracy found)
     return (feature, accu_train)
 
 
-def forward_selection(data, X_train, y_train, X_val, y_val, max_features, thread_Pool, C_param=1):
+def forward_selection(data, X_train, y_train, X_val, y_val, max_features, thread_Pool,selected_features =[],
+                      selected_features_by_name = [], C_param=1):
     # Getting all the features and remembering to remove the isLumA column
     features = [i for i in range(data.shape[1] - 1)]
-    selected_features = []
-    selected_features_by_name = []
+    features = np.setdiff1d(features, selected_features)
+    selected_features = selected_features
+    selected_features_by_name = selected_features_by_name
     highest_accu = 0
     best_feature = None
     selected_features_dict = []
@@ -51,11 +64,13 @@ def forward_selection(data, X_train, y_train, X_val, y_val, max_features, thread
         selected_features.append(best_feature)
         selected_features_by_name.append(data.columns[best_feature])
         # Train the model again with these features
-        X_train_filt = X_train[:, selected_features]
-        X_val_filt = X_val[:, selected_features]
-        lr = LogisticRegression(C=C_param, random_state=0).fit(X_train_filt, y_train)
+        X_train_filt = X_train[:, features_in_use]
+        X_val_filt = X_val[:, features_in_use]
+        X_train_filt_ranked = bin_rank(X_train_filt)
+        X_val_filt_ranked = bin_rank(X_val_filt)
+        lr = LogisticRegression(C=C_param, random_state=0).fit(X_train_filt_ranked, y_train)
         # Measure Validation accuracy with the features
-        accu_val = lr.score(X_val_filt, y_val)
+        accu_val = lr.score(X_val_filt_ranked, y_val)
         # Remove the feature found from the list of features
         features.remove(best_feature)
 
